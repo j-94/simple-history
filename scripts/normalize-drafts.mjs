@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Normalize draft artifacts using OpenAI (or a local heuristic fallback).
-// Env: OPENAI_API_KEY, OPENAI_MODEL (default: gpt-4o-mini)
-// Usage: node scripts/normalize-drafts.mjs [--input artifacts/drafts] [--out artifacts/normalized] [--max 10] [--dry-run]
+// Env: OPENAI_API_KEY, OPENAI_MODEL (default: gpt-4o-mini), OPENAI_BASE_URL (optional)
+// Usage: node scripts/normalize-drafts.mjs [--input artifacts/drafts] [--out artifacts/normalized] [--max 10] [--dry-run] [--lane A] [--temperature 0.2]
 
 import fs from 'fs';
 import path from 'path';
@@ -27,6 +27,9 @@ const maxCount = Number(getFlag('--max', '50'));
 const dryRun = Boolean(getFlag('--dry-run', false));
 const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 const apiKey = process.env.OPENAI_API_KEY || '';
+const baseURL = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
+const forceLane = getFlag('--lane', '');
+const temperature = Number(getFlag('--temperature', '0.2'));
 
 if (!fs.existsSync(inputDir)) {
   console.error(`Input dir not found: ${inputDir}`);
@@ -35,6 +38,11 @@ if (!fs.existsSync(inputDir)) {
 fs.mkdirSync(outDir, { recursive: true });
 
 const allowedLanes = ['A','B','C','D','E'];
+const tagVocab = [
+  'heuristic','checklist','prompt','rubric','diagram','visual','schema','json','code',
+  'kernel','agent','loop','alpha','beta','gamma','north-star','donkey','task-graph',
+  'policy','orchestrator','reflection','insight','note','strategy','design','pattern'
+];
 const defaultFrontmatter = {
   title: '',
   lane: 'A',
@@ -74,11 +82,41 @@ function heuristicNormalize(text) {
   return { ...defaultFrontmatter, title, lane, tags: Array.from(new Set(tags)), summary };
 }
 
+function titleCase(str) {
+  return str.replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.slice(1));
+}
+
+function toSlug(str, max = 60) {
+  return str.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-').slice(0, max);
+}
+
+function enrichTags(tags, textLower) {
+  const set = new Set((tags || []).map(t => String(t).toLowerCase().trim().replace(/\s+/g,'-')));
+  tagVocab.forEach(t => { if (textLower.includes(t.replace(/-/g,' '))) set.add(t); });
+  // ensure between 3 and 7 tags
+  const arr = Array.from(set).slice(0, 7);
+  while (arr.length < 3) arr.push('artifact');
+  return arr;
+}
+
+function extractJSONObject(text) {
+  const fenced = text.trim().replace(/^```json\n?|```$/g, '');
+  try { return JSON.parse(fenced); } catch {}
+  // try naive brace extraction
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start !== -1 && end !== -1 && end > start) {
+    const candidate = text.slice(start, end + 1);
+    try { return JSON.parse(candidate); } catch {}
+  }
+  throw new Error('Failed to parse JSON response');
+}
+
 async function callOpenAINormalize({ content, fmRaw }) {
   const prompt = `You are an editor that normalizes small atomic artifacts into a strict JSON schema.\n\nAllowed lanes: [\"A\"(Heuristic), \"B\"(Visual), \"C\"(Meta-Prompt), \"D\"(System Shard), \"E\"(Reflection)].\nReturn ONLY a single JSON object with keys: title, lane, status, tags, summary, publish_targets, content.\n- title: concise title (<= 10 words)\n- lane: one of A,B,C,D,E\n- status: \"draft\"\n- tags: 3-7 slugs\n- summary: one sentence\n- publish_targets: subset of [\"twitter\",\"github\",\"image\",\"gist\"]\n- content: lightly edited, concise version of the source\n\nOptionally use frontmatter hints if present.\n`;
   const user = `FRONTMATTER:\n${fmRaw || '(none)'}\n\nCONTENT:\n${content}`;
 
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+  const res = await fetch(`${baseURL}/chat/completions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -86,7 +124,8 @@ async function callOpenAINormalize({ content, fmRaw }) {
     },
     body: JSON.stringify({
       model,
-      temperature: 0.2,
+      temperature,
+      response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: prompt },
         { role: 'user', content: user }
@@ -99,8 +138,7 @@ async function callOpenAINormalize({ content, fmRaw }) {
   }
   const data = await res.json();
   const contentStr = data.choices?.[0]?.message?.content || '';
-  const jsonStr = contentStr.trim().replace(/^```json\n?|```$/g, '');
-  return JSON.parse(jsonStr);
+  return extractJSONObject(contentStr);
 }
 
 function toFrontmatter(obj) {
@@ -127,6 +165,8 @@ async function main() {
   }
   console.log(`Normalizing ${files.length} draft(s) from ${path.relative(repoRoot, inputDir)} -> ${path.relative(repoRoot, outDir)}`);
 
+  const seenHashes = new Set();
+
   for (const f of files) {
     const full = path.join(inputDir, f);
     const raw = fs.readFileSync(full, 'utf8');
@@ -134,10 +174,21 @@ async function main() {
 
     let normalized;
     if (!dryRun && apiKey) {
-      try {
-        normalized = await callOpenAINormalize({ content: body, fmRaw });
-      } catch (e) {
-        console.error(`API failed for ${f}: ${e.message}. Falling back to heuristic.`);
+      // retries with backoff
+      let attempt = 0, lastErr;
+      while (attempt < 3) {
+        try {
+          normalized = await callOpenAINormalize({ content: body, fmRaw });
+          break;
+        } catch (e) {
+          lastErr = e;
+          const delay = 500 * Math.pow(2, attempt);
+          await new Promise(r => setTimeout(r, delay));
+          attempt++;
+        }
+      }
+      if (!normalized) {
+        console.error(`API failed for ${f}: ${lastErr?.message}. Falling back to heuristic.`);
         normalized = heuristicNormalize(body);
       }
     } else {
@@ -145,11 +196,32 @@ async function main() {
     }
 
     // Guard values
+    if (forceLane && allowedLanes.includes(forceLane)) normalized.lane = forceLane;
     if (!allowedLanes.includes(normalized.lane)) normalized.lane = 'A';
     normalized.status = 'draft';
     if (!Array.isArray(normalized.publish_targets) || normalized.publish_targets.length === 0) {
       normalized.publish_targets = ['github'];
     }
+    // Title case and tighten
+    if (normalized.title) normalized.title = titleCase(String(normalized.title).trim()).slice(0, 80);
+    // Enrich tags
+    normalized.tags = enrichTags(normalized.tags || [], body.toLowerCase());
+    // Limit content length gently
+    if (normalized.content) {
+      const words = String(normalized.content).split(/\s+/);
+      if (words.length > 220) normalized.content = words.slice(0, 220).join(' ') + '…';
+    }
+
+    // Deduplicate by simple hash of content
+    const hash = (() => {
+      const s = (normalized.content || body);
+      let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h) + s.charCodeAt(i); return (h >>> 0).toString(16);
+    })();
+    if (seenHashes.has(hash)) {
+      console.log(`- skip duplicate content: ${f}`);
+      continue;
+    }
+    seenHashes.add(hash);
 
     const outName = f.replace(/\.md$/, '') + '.norm.md';
     const outPath = path.join(outDir, outName);
@@ -166,4 +238,3 @@ main().catch(err => {
   console.error(err);
   process.exit(1);
 });
-

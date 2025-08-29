@@ -25,5 +25,9 @@ Multilane Field for Atomic Artifacts
 - Normalization (optional, OpenAI-powered):
   - Env: set `OPENAI_API_KEY` and optionally `OPENAI_MODEL` (default `gpt-4o-mini`).
   - Run: `npm run normalize:drafts` to classify into lanes, add titles, tags, and summaries, and rewrite content to `artifacts/normalized/`.
-  - Flags: `--dry-run` (no API), `--max N`, `--input DIR`, `--out DIR`.
+  - Flags: `--dry-run` (no API), `--max N`, `--input DIR`, `--out DIR`, `--lane A|B|C|D|E` (force lane), `--temperature 0.1`.
   - Without an API key, a heuristic fallback runs locally.
+
+- Promotion:
+  - Copy/move normalized artifacts into lane folders based on frontmatter: `npm run promote:normalized`.
+  - Flags: `--src DIR`, `--dest DIR`, `--max N`, `--move`, `--dry-run`.
