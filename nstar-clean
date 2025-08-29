@@ -1,0 +1,38 @@
+#!/bin/bash
+# nstar-clean - Just an orchestrator loop with task graph and events
+
+cd "$(dirname "$0")"
+
+case "${1:-help}" in
+    "run")
+        if [ -z "$2" ]; then
+            echo "Usage: ./nstar-clean run \"Your goal\""
+            exit 1
+        fi
+        echo "🎯 Orchestrating: $2"
+        node nstar-orchestrator.mjs "$2" "${3:-fast}"
+        ;;
+        
+    "demo")
+        echo "🚀 Running orchestrator demo..."
+        node orchestrator.mjs demo
+        ;;
+        
+    *)
+        echo "nstar-clean - Simple Orchestrator Loop"
+        echo ""
+        echo "Commands:"
+        echo "  run \"goal\"    - Run orchestrated task"
+        echo "  demo          - Show orchestrator demo"
+        echo ""
+        echo "Examples:"
+        echo "  ./nstar-clean run \"Add tests\""
+        echo "  ./nstar-clean demo"
+        echo ""
+        echo "What it does:"
+        echo "  • Task graph with dependencies"
+        echo "  • Event-driven execution"
+        echo "  • Parallel task processing"
+        echo "  • Real-time status updates"
+        ;;
+esac

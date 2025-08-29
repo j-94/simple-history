@@ -1,0 +1,43 @@
+{
+  "key_phrases": [
+    "approve",
+    "score",
+    "bands",
+    "request",
+    "changes",
+    "100",
+    "strong",
+    "merge"
+  ],
+  "topics": [
+    "approve",
+    "score",
+    "bands"
+  ],
+  "tags": [
+    "approve",
+    "score",
+    "bands",
+    "request",
+    "changes"
+  ],
+  "lane_probs": {
+    "A": 0.5,
+    "B": 0.1,
+    "C": 0.2,
+    "D": 0.1,
+    "E": 0.1
+  },
+  "recommended_lane": "A",
+  "summary": "**Score bands** - 90–100: Strong APPROVE (merge-ready once human reviews). - 75–89: APPROVE with notes. - 60–74: REQUEST_CHANGES (insu",
+  "bullets": [
+    "Focus on approve",
+    "Focus on score",
+    "Focus on bands"
+  ],
+  "embedding": [],
+  "model_info": {
+    "chatModel": "fallback",
+    "embedModel": "none"
+  }
+}

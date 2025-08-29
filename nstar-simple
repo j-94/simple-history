@@ -1,0 +1,54 @@
+#!/bin/bash
+# nstar-simple - Minimal version without dependencies
+
+set -e
+cd "$(dirname "$0")"
+
+case "${1:-help}" in
+    "run")
+        if [ -z "$2" ]; then
+            echo "Usage: ./nstar-simple run \"Your goal here\""
+            exit 1
+        fi
+        echo "🎯 Running: $2"
+        node bin/nstar.mjs run --goal="$2" --mode="${3:-fast}"
+        ;;
+        
+    "chat")
+        echo "💬 Starting basic chat..."
+        node bin/nstar-chat.mjs
+        ;;
+        
+    "server")
+        echo "🚀 Starting server..."
+        node bin/nstar-server.mjs
+        ;;
+        
+    "paste")
+        echo "📋 Saving context..."
+        node bin/nstar.mjs paste
+        ;;
+        
+    "status")
+        echo "📊 System Status:"
+        echo "Files: $(ls bin/*.mjs | wc -l) scripts"
+        if [ -f "ops/TRACE.jsonl" ]; then
+            echo "TRACE: $(wc -l < ops/TRACE.jsonl) entries"
+        fi
+        ;;
+        
+    *)
+        echo "nstar-simple - Minimal AI Development System"
+        echo ""
+        echo "Commands:"
+        echo "  run \"goal\"    - Run a task"
+        echo "  chat          - Interactive chat"
+        echo "  server        - Start server"
+        echo "  paste         - Save context"
+        echo "  status        - Show status"
+        echo ""
+        echo "Examples:"
+        echo "  ./nstar-simple run \"Add tests\""
+        echo "  ./nstar-simple chat"
+        ;;
+esac

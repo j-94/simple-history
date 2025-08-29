@@ -12,7 +12,13 @@
   "scripts": {
     "start": "node bin/nstar-server.mjs",
     "test": "node test-streaming.mjs",
-    "dev": "PORT=8080 node bin/nstar-server.mjs"
+    "dev": "PORT=8080 node bin/nstar-server.mjs",
+    "extract:chat": "node scripts/extract-chat-snippets.mjs",
+    "normalize:drafts": "node scripts/normalize-drafts.mjs --input artifacts/drafts --out artifacts/normalized",
+    "promote:normalized": "node scripts/promote-normalized.mjs --src artifacts/normalized --dest artifacts/lanes",
+    "validate:artifacts": "node scripts/validate-artifacts.mjs --dir artifacts/normalized --strict",
+    "smoke:test": "node scripts/smoke-test.mjs",
+    "features:extract": "node scripts/extract-features.mjs --input artifacts/normalized --out artifacts/features"
   },
   "keywords": [
     "ai",
