@@ -202,8 +202,17 @@ async function main() {
     if (!Array.isArray(normalized.publish_targets) || normalized.publish_targets.length === 0) {
       normalized.publish_targets = ['github'];
     }
-    // Title case and tighten
-    if (normalized.title) normalized.title = titleCase(String(normalized.title).trim()).slice(0, 80);
+    // Sanitize title: strip markdown, punctuation noise, case, and limit
+    if (normalized.title) {
+      let t = String(normalized.title).trim();
+      t = t.replace(/[`*_\[\]<>]/g, ''); // strip md markers
+      t = t.replace(/\s{2,}/g, ' ');
+      // limit to ~12 words
+      const words = t.split(/\s+/).slice(0, 12);
+      t = words.join(' ');
+      t = titleCase(t).slice(0, 80);
+      normalized.title = t;
+    }
     // Enrich tags
     normalized.tags = enrichTags(normalized.tags || [], body.toLowerCase());
     // Limit content length gently
