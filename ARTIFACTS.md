@@ -22,3 +22,8 @@ Multilane Field for Atomic Artifacts
   3) Edit, tag, and set status to publish.
   4) Post or commit as needed.
 
+- Normalization (optional, OpenAI-powered):
+  - Env: set `OPENAI_API_KEY` and optionally `OPENAI_MODEL` (default `gpt-4o-mini`).
+  - Run: `npm run normalize:drafts` to classify into lanes, add titles, tags, and summaries, and rewrite content to `artifacts/normalized/`.
+  - Flags: `--dry-run` (no API), `--max N`, `--input DIR`, `--out DIR`.
+  - Without an API key, a heuristic fallback runs locally.

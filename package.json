@@ -13,7 +13,8 @@
     "start": "node bin/nstar-server.mjs",
     "test": "node test-streaming.mjs",
     "dev": "PORT=8080 node bin/nstar-server.mjs",
-    "extract:chat": "node scripts/extract-chat-snippets.mjs"
+    "extract:chat": "node scripts/extract-chat-snippets.mjs",
+    "normalize:drafts": "node scripts/normalize-drafts.mjs --input artifacts/drafts --out artifacts/normalized"
   },
   "keywords": [
     "ai",
