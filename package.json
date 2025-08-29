@@ -16,7 +16,8 @@
     "extract:chat": "node scripts/extract-chat-snippets.mjs",
     "normalize:drafts": "node scripts/normalize-drafts.mjs --input artifacts/drafts --out artifacts/normalized",
     "promote:normalized": "node scripts/promote-normalized.mjs --src artifacts/normalized --dest artifacts/lanes",
-    "validate:artifacts": "node scripts/validate-artifacts.mjs --dir artifacts/normalized --strict"
+    "validate:artifacts": "node scripts/validate-artifacts.mjs --dir artifacts/normalized --strict",
+    "smoke:test": "node scripts/smoke-test.mjs"
   },
   "keywords": [
     "ai",
