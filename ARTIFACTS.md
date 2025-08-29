@@ -31,3 +31,9 @@ Multilane Field for Atomic Artifacts
 - Promotion:
   - Copy/move normalized artifacts into lane folders based on frontmatter: `npm run promote:normalized`.
   - Flags: `--src DIR`, `--dest DIR`, `--max N`, `--move`, `--dry-run`.
+
+- Feature Extraction (OpenAI optional):
+  - Extract key phrases, topics, tags, lane probabilities, bullets, and embeddings per artifact.
+  - Env: `OPENAI_API_KEY` (required for API), `OPENAI_MODEL` (chat), `OPENAI_EMBED_MODEL` (embeddings), `OPENAI_BASE_URL`.
+  - Run: `npm run features:extract` (uses `artifacts/normalized` to `artifacts/features`).
+  - Add `--dry-run` to run a local fallback without API.
